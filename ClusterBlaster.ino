@@ -67,9 +67,9 @@ void loop() {
 		connected = kwp.connect(ADR_Dashboard, 10400);
 	}
 	else {
-		SENSOR resultBlock[4];
-		kwp.readBlock(ADR_Dashboard, 1, resultBlock);
-		mfa.setRadioText("Time", resultBlock[3].value);
+		Block result[4];
+		kwp.readGroup(1, result);
+		mfa.setRadioText("TIME", result[3].value);
 	}
 
 	delay(REFRESH_RATE);

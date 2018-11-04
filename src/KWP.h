@@ -21,13 +21,10 @@ struct KWP_MODULE{
   int ngroups;
 };
 
-struct SENSOR {
-  int type;
-  int a;
-  int b;
-  String desc;
+struct Block {
+  String name;
   String value;
-  String units;
+  String unit;
 };
 
 class KWP {
@@ -36,9 +33,8 @@ class KWP {
     ~KWP();
     bool connect(uint8_t addr, int baudrate);
     void disconnect();
-    int readBlock(uint8_t addr, int group, SENSOR resGroupSensor[]);
-    SENSOR getSensorData(byte k, byte a, byte b);
-    String getBlockDesc(uint8_t addr, int block);
+    void readGroup(int group, Block result[]);
+    Block buildBlock(byte k, byte a, byte b);
     bool isConnected();
     uint8_t getCurrAddr();
   private:
@@ -49,12 +45,26 @@ class KWP {
     uint8_t blockCounter = 0;
     uint8_t errorTimeout = 0;
     uint8_t errorData = 0;
+    uint8_t currAddr = 0;
+
+		int8_t coolantTemp = 0;
+		int8_t oilTemp = 0;
+		int8_t intakeAirTemp = 0;
+		int8_t oilPressure = 0;
+		float engineLoad = 0;
+		int   engineSpeed = 0;
+		float throttleValve = 0;
+		float supplyVoltage = 0;
+		uint8_t vehicleSpeed = 0;
+		uint8_t fuelConsumption = 0;
+		uint8_t fuelLevel = 0;
+		unsigned long odometer = 0;
+
 
     NewSoftwareSerial *obd;
 
     void obdWrite(uint8_t data);
     uint8_t obdRead();
-    void send5baud(uint8_t data);
     bool KWP5BaudInit(uint8_t addr);
     bool KWPSendBlock(char *s, int size);
     bool KWPReceiveBlock(char s[], int maxsize, int &size, bool init_delay = false);
