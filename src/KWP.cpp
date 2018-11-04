@@ -8,8 +8,6 @@ KWP::KWP(uint8_t receivePin, uint8_t transmitPin){
   digitalWrite(transmitPin, HIGH);
 
   obd = new NewSoftwareSerial(receivePin, transmitPin, false); // RX, TX, inverse logic
-
-  Serial.println(F("KWP created"));
 }
 
 KWP::~KWP(){
@@ -18,10 +16,6 @@ KWP::~KWP(){
 }
 
 bool KWP::connect(uint8_t addr, int baudrate) {
-  Serial.print(F("------connect addr="));
-  Serial.print(addr);
-  Serial.print(F(" baud="));
-  Serial.println(baudrate);
   blockCounter = 0;
   currAddr = 0;
   obd->begin(baudrate);
@@ -50,9 +44,6 @@ void KWP::disconnect() {
 }
 
 void KWP::readGroup(int group, Block result[]) {
-  Serial.print(F("------readMeasGroup "));
-  Serial.println(group);
-
   char s[64];
   sprintf(s, "\x04%c\x29%c\x03", blockCounter, group);
   if (!KWPSendBlock(s, 5)) {
@@ -69,8 +60,6 @@ void KWP::readGroup(int group, Block result[]) {
   }
 
   int count = (size-4) / 3;
-  Serial.print(F("count="));
-  Serial.println(count);
   for (int idx=0; idx < count; idx++){
     byte k=s[3 + idx*3];
     byte a=s[3 + idx*3+1];
@@ -82,13 +71,6 @@ void KWP::readGroup(int group, Block result[]) {
 }
 
 Block KWP::buildBlock(byte k, byte a, byte b) {
-  Serial.print(F("type="));
-  Serial.print(k);
-  Serial.print(F("  a="));
-  Serial.print(a);
-  Serial.print(F("  b="));
-  Serial.println(b);
-
 	char buf[32];
 
   float value = 0;
@@ -201,8 +183,6 @@ uint8_t KWP::obdRead() {
 }
 
 bool KWP::KWP5BaudInit(uint8_t addr){
-  Serial.println(F("---KWP 5 baud init"));
-
   #define bitcount 10
   byte bits[bitcount];
   byte even=1;
@@ -216,14 +196,7 @@ bool KWP::KWP5BaudInit(uint8_t addr){
         bit = (byte) ((addr & (1 << (i-1))) != 0);
         even = even ^ bit;
       }
-    Serial.print(F("bit"));
-    Serial.print(i);
-    Serial.print(F("="));
-    Serial.print(bit);
-    if (i == 0) Serial.print(F(" startbit"));
-      else if (i == 8) Serial.print(F(" parity"));
-      else if (i == 9) Serial.print(F(" stopbit"));
-    Serial.println();
+
     bits[i]=bit;
   }
   for (int i=0; i < bitcount+1; i++){
@@ -242,17 +215,6 @@ bool KWP::KWP5BaudInit(uint8_t addr){
 }
 
 bool KWP::KWPSendBlock(char *s, int size) {
-  Serial.print(F("---KWPSend sz="));
-  Serial.print(size);
-  Serial.print(F(" blockCounter="));
-  Serial.println(blockCounter);
-  Serial.print(F("OUT:"));
-  for (int i=0; i < size; i++){
-    uint8_t data = s[i];
-    Serial.print(data, HEX);
-    Serial.print(" ");
-  }
-  Serial.println();
   for (int i=0; i < size; i++){
     uint8_t data = s[i];
     obdWrite(data);
@@ -275,10 +237,7 @@ bool KWP::KWPReceiveBlock(char s[], int maxsize, int &size, bool init_delay) {
   uint8_t data = 0;
   int recvcount = 0;
   if (size == 0) ackeachbyte = true;
-  Serial.print(F("---KWPReceive sz="));
-  Serial.print(size);
-  Serial.print(F(" blockCounter="));
-  Serial.println(blockCounter);
+
   if (size > maxsize) {
     Serial.println("ERROR: invalid maxsize");
     return false;
@@ -317,29 +276,17 @@ bool KWP::KWPReceiveBlock(char s[], int maxsize, int &size, bool init_delay) {
       return false;
     }
   }
-  Serial.print(F("IN: sz="));
-  Serial.print(size);
-  Serial.print(F(" data="));
-  for (int i=0; i < size; i++){
-    uint8_t data = s[i];
-    Serial.print(data, HEX);
-    Serial.print(F(" "));
-  }
-  Serial.println();
   blockCounter++;
   return true;
 }
 
 bool KWP::KWPSendAckBlock() {
-  Serial.print(F("---KWPSendAckBlock blockCounter="));
-  Serial.println(blockCounter);
   char buf[32];
   sprintf(buf, "\x03%c\x09\x03", blockCounter);
   return (KWPSendBlock(buf, 4));
 }
 
 bool KWP::readConnectBlocks() {
-  Serial.println(F("------readconnectblocks"));
   String info;
   while (true){
     int size = 0;
@@ -357,7 +304,5 @@ bool KWP::readConnectBlocks() {
     info += text.substring(3, size-2);
     if (!KWPSendAckBlock()) return false;
   }
-  Serial.print("label=");
-  Serial.println(info);
   return true;
 }
