@@ -55,7 +55,7 @@ void loop() {
 	if (startup) {
 		mfa.init_graphic();
 		drawBootImage(mfa);
-		imageTimer.start(5000);
+		imageTimer.start(3000);
 		startup = false;
 	}
 
