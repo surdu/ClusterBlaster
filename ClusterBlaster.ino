@@ -1,6 +1,8 @@
-#include "src/KWP.h"
-#include "src/millisDelay.h"
-#include "src/MFALib/MFA.h"
+#include "src/KWP.h";
+#include "src/millisDelay.h";
+#include "src/Button.h";
+#include "src/MFALib/MFA.h";
+
 
 #include "boot-image.h";
 
@@ -40,14 +42,22 @@ MFA mfa(pinCLOCK, pinDATA, pinENABLE);
 #define pinKLineTX 3
 KWP kwp(pinKLineRX, pinKLineTX);
 
+#define pinEnterBtn 7
+#define pinDownBtn 8
+#define pinUpBtn 9
+Button enterBtn(pinEnterBtn);
+Button downBtn(pinDownBtn);
+Button upBtn(pinUpBtn);
+
 millisDelay imageTimer;
+millisDelay refreshTimer;
 
 void setup() {
   pinMode(pinKLineTX, OUTPUT);
   digitalWrite(pinKLineTX, HIGH);
 
   Serial.begin(19200);
-  Serial.println(F("SETUP: DONE"));
+  Serial.println("SETUP: DONE");
   mfa.init();
 }
 
@@ -65,12 +75,35 @@ void loop() {
 
 	if (!connected) {
 		connected = kwp.connect(ADR_Dashboard, 10400);
-	}
-	else {
-		Block result[4];
-		kwp.readGroup(1, result);
-		mfa.setRadioText("TIME", result[3].value);
+		refreshTimer.start(REFRESH_RATE);
 	}
 
-	delay(REFRESH_RATE);
+	if (refreshTimer.isFinished()) {
+		updateScreen();
+		refreshTimer.repeat();
+	}
+
+
+	if (upBtn.pressed()) {
+		Serial.println("UP PRESS");
+	}
+
+	if (downBtn.pressed()) {
+		Serial.println("DOWN PRESS");
+	}
+
+	if (enterBtn.pressed()) {
+		Serial.println("ENTER PRESS");
+	}
+}
+
+void updateScreen() {
+	if (!connected) {
+		return;
+	}
+
+	Block result[4];
+	kwp.readGroup(1, result);
+	mfa.setRadioText("BOOST", String(random(1, 100))); //result[3].value
+	Serial.println("REFRESH");
 }
