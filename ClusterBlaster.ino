@@ -3,7 +3,6 @@
 #include "src/Button.h";
 #include "src/MFALib/MFA.h";
 
-
 #include "boot-image.h";
 
 #define ADR_Engine 0x01
@@ -15,23 +14,10 @@
 #define ADR_Central_locking 0x35
 
 #define REFRESH_RATE 1000
+#define MAX_KWP_RETRIES 3
 
-bool connected = false;
+bool ignitionON = false;
 bool startup = true;
-
-int8_t coolantTemp = 0;
-int8_t oilTemp = 0;
-int8_t intakeAirTemp = 0;
-int8_t oilPressure = 0;
-float engineLoad = 0;
-int   engineSpeed = 0;
-float throttleValve = 0;
-float supplyVoltage = 0;
-uint8_t vehicleSpeed = 0;
-uint8_t fuelConsumption = 0;
-uint8_t fuelLevel = 0;
-unsigned long odometer = 0;
-
 
 #define pinCLOCK 4
 #define pinDATA 5
@@ -52,30 +38,45 @@ Button upBtn(pinUpBtn);
 millisDelay imageTimer;
 millisDelay refreshTimer;
 
+#define RADIO_ENTRIES 3
+RadioEntry radioEntries[RADIO_ENTRIES] = {
+	{"OIL TEMP", ADR_Dashboard, 3, 2},
+	{"FUEL LVL", ADR_Dashboard, 2, 1},
+	{"SPEED", ADR_Dashboard, 1, 0}
+};
+int8_t radioEntryIndex = 0;
+
 void setup() {
   pinMode(pinKLineTX, OUTPUT);
   digitalWrite(pinKLineTX, HIGH);
 
   Serial.begin(19200);
   Serial.println("SETUP: DONE");
-  mfa.init();
+
+  ignitionON = true;
 }
 
 void loop() {
-	if (startup) {
+	if (!ignitionON) {
+		uint8_t state = digitalRead(pinENABLE);
+		if (state > 0) {
+			ignitionON = true;
+		}
+	}
+
+	if (ignitionON && startup) {
+		mfa.init();
 		mfa.init_graphic();
 		drawBootImage(mfa);
 		imageTimer.start(3000);
 		startup = false;
+
+		kwp.connect(ADR_Dashboard, 10400);
+		refreshTimer.start(REFRESH_RATE);
 	}
 
 	if (imageTimer.isFinished()) {
 		mfa.remove_graphic();
-	}
-
-	if (!connected) {
-		connected = kwp.connect(ADR_Dashboard, 10400);
-		refreshTimer.start(REFRESH_RATE);
 	}
 
 	if (refreshTimer.isFinished()) {
@@ -85,11 +86,15 @@ void loop() {
 
 
 	if (upBtn.pressed()) {
-		Serial.println("UP PRESS");
+		radioEntryIndex = (radioEntryIndex + 1) % RADIO_ENTRIES;
 	}
 
 	if (downBtn.pressed()) {
-		Serial.println("DOWN PRESS");
+		radioEntryIndex = (radioEntryIndex - 1) % RADIO_ENTRIES;
+
+		if (radioEntryIndex  < 0) {
+			radioEntryIndex += RADIO_ENTRIES;
+		}
 	}
 
 	if (enterBtn.pressed()) {
@@ -98,12 +103,14 @@ void loop() {
 }
 
 void updateScreen() {
-	if (!connected) {
+	if (!kwp.isConnected()) {
+		ignitionON = false;
+		startup = true;
 		return;
 	}
 
 	Block result[4];
-	kwp.readGroup(1, result);
-	mfa.setRadioText("BOOST", String(random(1, 100))); //result[3].value
+	kwp.readGroup(radioEntries[radioEntryIndex].group, result);
+	mfa.setRadioText(radioEntries[radioEntryIndex].name, result[radioEntries[radioEntryIndex].groupIndex].value + " " + result[radioEntries[radioEntryIndex].groupIndex].unit);
 	Serial.println("REFRESH");
 }

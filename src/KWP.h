@@ -14,11 +14,11 @@
 #define ADR_Central_locking 0x35
 #define ADR_Navigation 0x37
 
-struct KWP_MODULE{
-  String name;
-  uint8_t addr;
-  int *groups;
-  int ngroups;
+struct RadioEntry {
+	String name;
+	uint8_t addr;
+	uint8_t group;
+	uint8_t groupIndex;
 };
 
 struct Block {

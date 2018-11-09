@@ -85,7 +85,7 @@ Block KWP::buildBlock(byte k, byte a, byte b) {
 		case 4:  value=abs(b-127)*0.01*a;   block.unit=F("ATDC"); break;
 		case 5:  value=a*(b-100)*0.1;       block.unit=F("°C");break;
 		case 6:  value=0.001*a*b;           block.unit=F("V");break;
-		case 7:  value=0.01*a*b;            block.unit=F("km/h");break;
+		case 7:  block.value = String(0.01*a*b, 0); block.unit=F("km/h");break;
 		case 8:  value=0.1*a*b;             block.unit=F(" ");break;
 		case 9:  value=(b-127)*0.02*a;      block.unit=F("Deg");break;
 		case 10: if (b == 0) block.value=F("COLD"); else block.value=F("WARM");break;
@@ -152,7 +152,7 @@ Block KWP::buildBlock(byte k, byte a, byte b) {
 		default: sprintf(buf, "%2x, %2x      ", a, b); block.value=String(buf); break;
 	}
 
-	if (block.unit.length() != 0) {
+	if (block.value.length() == 0) {
 	  dtostrf(value, 4, 2, buf);
 	  block.value = String(buf);
 	}
