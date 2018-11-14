@@ -28,11 +28,11 @@ MFA mfa(pinCLOCK, pinDATA, pinENABLE);
 #define pinKLineTX 3
 KWP kwp(pinKLineRX, pinKLineTX);
 
-#define pinEnterBtn 7
-#define pinDownBtn 8
+#define pinDownBtn 7
+#define pinEnterBtn 8
 #define pinUpBtn 9
-Button enterBtn(pinEnterBtn);
 Button downBtn(pinDownBtn);
+Button enterBtn(pinEnterBtn);
 Button upBtn(pinUpBtn);
 
 millisDelay imageTimer;
@@ -87,6 +87,7 @@ void loop() {
 
 	if (upBtn.pressed()) {
 		radioEntryIndex = (radioEntryIndex + 1) % RADIO_ENTRIES;
+		updateScreen();
 	}
 
 	if (downBtn.pressed()) {
@@ -95,6 +96,7 @@ void loop() {
 		if (radioEntryIndex  < 0) {
 			radioEntryIndex += RADIO_ENTRIES;
 		}
+		updateScreen();
 	}
 
 	if (enterBtn.pressed()) {
