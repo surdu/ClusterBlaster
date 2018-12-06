@@ -13,7 +13,7 @@
 #define ADR_Immobilizer 0x25
 #define ADR_Central_locking 0x35
 
-#define REFRESH_RATE 1000
+#define REFRESH_RATE 500
 #define MAX_KWP_RETRIES 3
 
 bool ignitionON = false;
@@ -35,8 +35,11 @@ Button downBtn(pinDownBtn);
 Button enterBtn(pinEnterBtn);
 Button upBtn(pinUpBtn);
 
+#define ledPin 13
+
 millisDelay imageTimer;
 millisDelay refreshTimer;
+millisDelay ledTimer;
 
 #define RADIO_ENTRIES 3
 RadioEntry radioEntries[RADIO_ENTRIES] = {
@@ -49,6 +52,9 @@ int8_t radioEntryIndex = 0;
 void setup() {
   pinMode(pinKLineTX, OUTPUT);
   digitalWrite(pinKLineTX, HIGH);
+
+  pinMode(ledPin, OUTPUT);
+  digitalWrite(ledPin, HIGH);
 
   Serial.begin(19200);
   Serial.println("SETUP: DONE");
@@ -84,6 +90,9 @@ void loop() {
 		refreshTimer.repeat();
 	}
 
+	if (ledTimer.isFinished()) {
+		digitalWrite(ledPin, LOW);
+	}
 
 	if (upBtn.pressed()) {
 		radioEntryIndex = (radioEntryIndex + 1) % RADIO_ENTRIES;
@@ -108,11 +117,16 @@ void updateScreen() {
 	if (!kwp.isConnected()) {
 		ignitionON = false;
 		startup = true;
+		digitalWrite(ledPin, HIGH);
 		return;
 	}
 
 	Block result[4];
 	kwp.readGroup(radioEntries[radioEntryIndex].group, result);
 	mfa.setRadioText(radioEntries[radioEntryIndex].name, result[radioEntries[radioEntryIndex].groupIndex].value + " " + result[radioEntries[radioEntryIndex].groupIndex].unit);
-	Serial.println("REFRESH");
+
+	if (kwp.isConnected()) {
+		ledTimer.start(10);
+		digitalWrite(ledPin, HIGH);
+	}
 }
