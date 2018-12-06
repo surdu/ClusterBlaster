@@ -14,9 +14,14 @@
 #define ADR_Central_locking 0x35
 #define ADR_Navigation 0x37
 
+struct Module {
+	uint8_t addr;
+	uint16_t baud;
+};
+
 struct RadioEntry {
 	String name;
-	uint8_t addr;
+	Module module;
 	uint8_t group;
 	uint8_t groupIndex;
 };

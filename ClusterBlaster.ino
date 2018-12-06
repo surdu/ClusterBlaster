@@ -41,11 +41,22 @@ millisDelay imageTimer;
 millisDelay refreshTimer;
 millisDelay ledTimer;
 
+Module Dash = {
+	ADR_Dashboard,
+	10400
+};
+
+Module ECU = {
+	ADR_Engine,
+	9600
+};
+
+
 #define RADIO_ENTRIES 3
 RadioEntry radioEntries[RADIO_ENTRIES] = {
-	{"OIL TEMP", ADR_Dashboard, 3, 2},
-	{"FUEL LVL", ADR_Dashboard, 2, 1},
-	{"SPEED", ADR_Dashboard, 1, 0}
+	{"OIL TEMP", Dash, 3, 2},
+	{"FUEL LVL", Dash, 2, 1},
+	{"SPEED", Dash, 1, 0}
 };
 int8_t radioEntryIndex = 0;
 
@@ -77,7 +88,7 @@ void loop() {
 		imageTimer.start(3000);
 		startup = false;
 
-		kwp.connect(ADR_Dashboard, 10400);
+		kwp.connect(radioEntries[radioEntryIndex].module.addr, radioEntries[radioEntryIndex].module.baud);
 		refreshTimer.start(REFRESH_RATE);
 	}
 
@@ -123,7 +134,7 @@ void updateScreen() {
 
 	Block result[4];
 	kwp.readGroup(radioEntries[radioEntryIndex].group, result);
-	mfa.setRadioText(radioEntries[radioEntryIndex].name, result[radioEntries[radioEntryIndex].groupIndex].value + " " + result[radioEntries[radioEntryIndex].groupIndex].unit);
+	mfa.setRadioText(radioEntries[radioEntryIndex].name, result[radioEntries[radioEntryIndex].groupIndex].value);
 
 	if (kwp.isConnected()) {
 		ledTimer.start(10);
