@@ -1,23 +1,14 @@
+#include <StateMachine.h>;
+
 #include "src/KWP.h";
 #include "src/millisDelay.h";
 #include "src/Button.h";
 #include "src/MFALib/MFA.h";
 
-#include "boot-image.h";
-
-#define ADR_Engine 0x01
-#define ADR_Gears  0x02
-#define ADR_ABS_Brakes 0x03
-#define ADR_Airbag 0x15
-#define ADR_Dashboard 0x17
-#define ADR_Immobilizer 0x25
-#define ADR_Central_locking 0x35
+// #include "boot-image.h";
 
 #define REFRESH_RATE 500
 #define MAX_KWP_RETRIES 3
-
-bool ignitionON = false;
-bool startup = true;
 
 #define pinCLOCK 4
 #define pinDATA 5
@@ -52,13 +43,22 @@ Module ECU = {
 };
 
 
-#define RADIO_ENTRIES 3
+#define RADIO_ENTRIES 5
 RadioEntry radioEntries[RADIO_ENTRIES] = {
+	{"VOLTAGE", ECU, 16, 3},
+	{"BOOST", ECU, 11, 2},
 	{"OIL TEMP", Dash, 3, 2},
 	{"FUEL LVL", Dash, 2, 1},
 	{"SPEED", Dash, 1, 0}
 };
 int8_t radioEntryIndex = 0;
+
+StateMachine machine = StateMachine();
+
+State* S1 = machine.addState(&S1idle);
+State* S2 = machine.addState(&S2showLogo);
+State* S3 = machine.addState(&S3showVoltage);
+State* S4 = machine.addState(&S4showOilTemp);
 
 void setup() {
   pinMode(pinKLineTX, OUTPUT);
@@ -67,77 +67,102 @@ void setup() {
   pinMode(ledPin, OUTPUT);
   digitalWrite(ledPin, HIGH);
 
-  Serial.begin(19200);
+  Serial.begin(9600);
+
+	S1->addTransition(&transitionS1S2,S2);
+	S2->addTransition(&transitionS2S3,S3);
+	S3->addTransition(&transitionS3S4,S4);
   Serial.println("SETUP: DONE");
 
-  ignitionON = true;
+	mfa.init();
 }
 
 void loop() {
-	if (!ignitionON) {
-		uint8_t state = digitalRead(pinENABLE);
-		if (state > 0) {
-			ignitionON = true;
-		}
-	}
+	machine.run();
+  delay(REFRESH_RATE);
+}
 
-	if (ignitionON && startup) {
-		mfa.init();
-		mfa.init_graphic();
-		drawBootImage(mfa);
+void debug(String a, ...) {
+	va_list l_Arg;
+	va_start(l_Arg, a);
+
+	while(a != NULL) {
+		Serial.print(a);
+		Serial.print(" ");
+		a = va_arg(l_Arg, String);
+	}
+	Serial.println();
+}
+
+void S1idle() {
+	Serial.println("Idle");
+}
+
+bool transitionS1S2(){
+	uint8_t state = digitalRead(pinKLineRX);
+	debug("State:", state);
+	return state > 0;
+}
+
+void S2showLogo() {
+	if(machine.executeOnce){
+		Serial.println("Logo");
+		// mfa.init_graphic();
+		// drawBootImage(mfa);
 		imageTimer.start(3000);
-		startup = false;
-
-		kwp.connect(radioEntries[radioEntryIndex].module.addr, radioEntries[radioEntryIndex].module.baud);
-		refreshTimer.start(REFRESH_RATE);
-	}
-
-	if (imageTimer.isFinished()) {
-		mfa.remove_graphic();
-	}
-
-	if (refreshTimer.isFinished()) {
-		updateScreen();
-		refreshTimer.repeat();
-	}
-
-	if (ledTimer.isFinished()) {
-		digitalWrite(ledPin, LOW);
-	}
-
-	if (upBtn.pressed()) {
-		radioEntryIndex = (radioEntryIndex + 1) % RADIO_ENTRIES;
-		updateScreen();
-	}
-
-	if (downBtn.pressed()) {
-		radioEntryIndex = (radioEntryIndex - 1) % RADIO_ENTRIES;
-
-		if (radioEntryIndex  < 0) {
-			radioEntryIndex += RADIO_ENTRIES;
-		}
-		updateScreen();
-	}
-
-	if (enterBtn.pressed()) {
-		Serial.println("ENTER PRESS");
 	}
 }
 
-void updateScreen() {
-	if (!kwp.isConnected()) {
-		ignitionON = false;
-		startup = true;
-		digitalWrite(ledPin, HIGH);
-		return;
-	}
+bool transitionS2S3() {
+	bool isFinished = imageTimer.isFinished();
+	Serial.print("isFinished:");
+	Serial.println(isFinished);
 
+	if (isFinished) {
+		// mfa.remove_graphic();
+	}
+	return isFinished;
+}
+
+void S3showVoltage() {
+	RadioEntry voltageEntry = {"VOLTAGE", ECU, 16, 3};
+	displayRadioEntry(voltageEntry);
+}
+
+bool transitionS3S4() {
+	RadioEntry rpmEntry = {"RPM", ECU, 8, 0};
+	String rpm = readKWP(rpmEntry);
+	Serial.print("RPM: ");
+	Serial.println(rpm.toFloat());
+	return rpm.toFloat() > 0 ;
+}
+
+void S4showOilTemp() {
+	RadioEntry oilTempEntry = {"OIL TEMP", Dash, 3, 2};
+	displayRadioEntry(oilTempEntry);
+}
+
+// ----------------------------------------------------------------
+
+void connect(RadioEntry entry) {
+	if (!kwp.isConnected() || kwp.getCurrAddr() != entry.module.addr) {
+		Serial.print("Connecting to module: ");
+		Serial.println(entry.module.addr);
+		kwp.connect(entry.module.addr, entry.module.baud);
+	}
+}
+
+String readKWP(RadioEntry entry) {
+	connect(entry);
 	Block result[4];
-	kwp.readGroup(radioEntries[radioEntryIndex].group, result);
-	mfa.setRadioText(radioEntries[radioEntryIndex].name, result[radioEntries[radioEntryIndex].groupIndex].value);
+	kwp.readGroup(entry.group, result);
+	return result[entry.groupIndex].value;
+}
 
-	if (kwp.isConnected()) {
-		ledTimer.start(10);
-		digitalWrite(ledPin, HIGH);
-	}
+void displayRadioEntry(RadioEntry entry) {
+	String value = readKWP(entry);
+	Serial.print(entry.name);
+	Serial.print(": ");
+	Serial.println(value);
+	mfa.setRadioText(entry.name, value);
 }

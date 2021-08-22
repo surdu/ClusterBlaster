@@ -164,6 +164,10 @@ bool KWP::isConnected() {
   return connected;
 }
 
+uint8_t KWP::getCurrAddr() {
+  return currAddr;
+}
+
 void KWP::obdWrite(uint8_t data) {
   obd->write(data);
 }
